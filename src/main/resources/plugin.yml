@@ -1,0 +1,12 @@
+name: ZestTapPlugin
+version: 1.0.0
+main: com.brugnevom.zesttapplugin.ZestTapPlugin
+api-version: 1.13
+depend: [ProtocolLib]
+
+commands:
+  reloadhit:
+    description: Reload the ZestTapPlugin config
+  zesttapplugin:
+    description: ZestTapPlugin commands
+    usage: /<command> [creator]
