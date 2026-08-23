@@ -5,8 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import net.minecraft.server.v1_8_R3.EntityPlayer;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,6 +15,8 @@ import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.util.Vector;
+import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 
 public class RunTick implements Listener {
   public static double cpslimit = 16.0D;
@@ -37,14 +38,6 @@ public class RunTick implements Listener {
   public static Player victim;
   
   public static Player damager;
-  
-  public static EntityPlayer nmsPlayer;
-  
-  public static EntityPlayer nmsdPlayer;
-  
-  Map<UUID, Integer> hitCount = new HashMap<>();
-  
-  public static int hitcombo;
   
   public ZestTapPlugin m;
   
@@ -84,8 +77,6 @@ public class RunTick implements Listener {
     if (event.getEntity() instanceof Player && event.getDamager() instanceof Player) {
       victim = (Player)event.getEntity();
       damager = (Player)event.getDamager();
-      nmsPlayer = ((CraftPlayer)damager).getHandle();
-      nmsdPlayer = ((CraftPlayer)victim).getHandle();
       UUID damagerUUID = damager.getUniqueId();
       int currentCPS = getCPS(damagerUUID);
       if (currentCPS > cpslimit) {
@@ -103,23 +94,30 @@ public class RunTick implements Listener {
           hitcount = 0; 
         event.setDamage(event.getDamage() * damage);
         victim.setMaximumNoDamageTicks(intmaxdmtick);
-        if (consistantkb && 
-          hitcount >= 1 && !victim.isOnGround() && 
-          damager.getLocation().distance(victim.getLocation()) > 2.5D && 
-          nmsdPlayer.hurtTicks > 0) {
-          
-          Vector kb = new Vector(0, 0, 0);
-          if (hitcount == 1) {
-            kb.setY(-0.3D); 
-          }
-          if (hitcount == 2) {
-            kb = victim.getLocation().toVector().subtract(damager.getLocation().toVector());
-            kb.setY(0);
-            kb.normalize();
-            kb.multiply(0.35D);
-            kb.setY(-0.35D);
-          }
-          victim.setVelocity(kb);
+        
+        if (consistantkb && hitcount >= 1 && !victim.isOnGround() && damager.getLocation().distance(victim.getLocation()) > 2.5D) {
+          try {
+            Method getHandle = victim.getClass().getMethod("getHandle");
+            Object entityPlayer = getHandle.invoke(victim);
+            Field hurtTicksField = entityPlayer.getClass().getField("hurtTicks");
+            int hurtTicks = hurtTicksField.getInt(entityPlayer);
+            
+            if (hurtTicks > 0) {
+              Bukkit.getScheduler().runTaskLater(m, () -> {
+                Vector kb = new Vector(0, 0, 0);
+                if (hitcount == 1) {
+                  kb.setY(-0.3D); 
+                } else if (hitcount == 2) {
+                  kb = victim.getLocation().toVector().subtract(damager.getLocation().toVector());
+                  kb.setY(0);
+                  kb.normalize();
+                  kb.multiply(0.35D);
+                  kb.setY(-0.35D);
+                }
+                victim.setVelocity(kb);
+              }, 0L);
+            }
+          } catch (Exception ignored) {}
         } 
       } else {
         victim.setMaximumNoDamageTicks(20);
